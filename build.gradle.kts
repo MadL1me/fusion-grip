@@ -4,8 +4,8 @@ plugins {
     id("org.jetbrains.intellij") version "1.15.0"
 }
 
-group = "madlime"
-version = "1.0-SNAPSHOT"
+group = "com.madlime"
+version = "0.0.1"
 
 repositories {
     mavenCentral()
