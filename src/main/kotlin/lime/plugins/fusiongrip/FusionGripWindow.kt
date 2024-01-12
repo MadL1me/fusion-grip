@@ -71,8 +71,8 @@ class FusionGripWindow : ToolWindowFactory, DumbAware {
 
                 val response = Messages.showYesNoDialog(
                     frame,
-                    "Вы точно хотите создать DataSource'ы?",
-                    "Подтверждение",
+                    "Some confirm messages",
+                    "Confirmation",
                     Messages.getQuestionIcon()
                 )
 
