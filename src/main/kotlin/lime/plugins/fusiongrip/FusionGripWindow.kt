@@ -77,10 +77,12 @@ class FusionGripWindow : ToolWindowFactory, DumbAware {
                 )
 
                 if (response == Messages.YES) {
-                    val config = GenerationConfig()
+                    val config = GenerationConfig(
+                        "asd".toRegex()
+                    )
 
                     try {
-                        val createdCount = FuseSourcesTask().action(toolWindow.project)
+                        val createdCount = FuseSourcesTask().action(toolWindow.project, config)
 
                         NotificationGroupManager.getInstance()
                             .getNotificationGroup("Lime.FusionGrip")

@@ -1,3 +1,5 @@
 package lime.plugins.fusiongrip.config
-class GenerationConfig {
-}
+
+data class GenerationConfig(
+    val sourceNameRegex: Regex,
+)
