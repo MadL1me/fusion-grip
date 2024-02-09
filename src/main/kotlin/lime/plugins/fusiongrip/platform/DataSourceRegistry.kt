@@ -5,6 +5,7 @@ import com.intellij.openapi.project.Project
 
 data class IdeDataSource(
     val sourceName: String,
+    val userName: String,
     val host: String,
     val port: Int,
     val dbName: String,
@@ -23,15 +24,17 @@ enum class DbType {
 //}
 
 object DataSourceRegistry {
+
     fun getIdeDataSources(project: Project): List<IdeDataSource> {
         val storage = DataSourceStorage.getProjectStorage(project)
 
         val ideSources = storage.dataSources.map { IdeDataSource(
-            it.sourceName,
             it.name,
+            it.username,
+            getHostFromPgConnectionString(it.url.toString().removePrefix("jdbc:")) ?: throw Exception("Failed to get host"),
             6532,
-            "", // somehow get from jdbc?
-            driverToDbType(it.driverClass)
+            it.url?.split('/')?.last() ?: throw Exception("Failed to get dbName"), // somehow get from jdbc?
+            driverToDbType(it.databaseDriver?.name ?: "unknown")
         )}
 
         return ideSources;
@@ -45,9 +48,15 @@ object DataSourceRegistry {
         storage.addDataSource(dataSource)
     }
 
+    private fun getHostFromPgConnectionString(connString: String): String? {
+        val pattern = Regex("postgresql://(?:[^:@/]*:?[^:@/]*@)?([^:/?]+)")
+        val matchResult = pattern.find(connString)
+        return matchResult?.groups?.get(1)?.value
+    }
+
     private fun driverToDbType(driver: String): DbType {
         return when (driver) {
-            "POSTGRESQL" -> DbType.Postgres
+            "PostgreSQL" -> DbType.Postgres
             else -> DbType.Unknown
         }
     }

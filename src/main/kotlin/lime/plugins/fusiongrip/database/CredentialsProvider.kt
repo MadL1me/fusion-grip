@@ -32,8 +32,9 @@ class SingleCachedPgPassCredentialsProvider : CredentialsProvider {
             throw IllegalArgumentException("~/.pgpass file not found")
         }
 
-        val credentials = pgpassFile.readLines().map { line ->
+        val credentials = pgpassFile.readLines().filter { it.trim().isNotEmpty() }.map { line ->
             val parts = line.split(":")
+            var a = line.isEmpty()
             if (parts.size != 5) {
                 throw IllegalArgumentException("Invalid line format: $line")
             }

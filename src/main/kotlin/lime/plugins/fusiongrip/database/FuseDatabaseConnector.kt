@@ -34,10 +34,15 @@ data class ImportForeignSchemaCmd(
     val localSchema: String,
 )
 
-class LocalDatabaseRepository private constructor(
-    val connection: Connection
-) {
+data class CreateSchemaCmd(
+    val schemaName: String,
+)
 
+data class CreateDatabaseCmd(
+    val databaseName: String,
+)
+
+class LocalDatabaseRepository(val connection: Connection) {
     fun createSchema(schemaName: String) {
 
     }
@@ -60,9 +65,9 @@ class LocalDatabaseRepository private constructor(
     fun createForeignServer(cmd: CreateForeignServerCmd): Boolean {
         requireValidName("ServerName", cmd.serverName)
         requireValidName("FdwName", cmd.fdwName)
-        requireValidName("host", cmd.fdwName)
-        requireValidName("port", cmd.fdwName)
-        requireValidName("dbName", cmd.fdwName)
+        requireValidName("host", cmd.host)
+        requireValidName("port", cmd.port.toString())
+        requireValidName("dbName", cmd.dbName)
 
         val sql = """
             CREATE SERVER IF NOT EXISTS ${cmd.serverName}
@@ -104,11 +109,11 @@ class LocalDatabaseRepository private constructor(
 
     fun importForeignSchema(cmd: ImportForeignSchemaCmd): Boolean {
         requireValidName("ServerName", cmd.serverName)
-        requireValidName("ServerName", cmd.localSchema)
+        requireValidName("LocalSchema", cmd.localSchema)
         requireValidName("ForeignSchema", cmd.foreignSchema)
 
         val sql = """
-            IMPORT FOREIGN SCHEMA ${cmd.foreignSchema} 
+            IMPORT FOREIGN SCHEMA ${cmd.foreignSchema}
                 FROM SERVER ${cmd.serverName} INTO ${cmd.localSchema};
         """.trimIndent()
 
@@ -116,8 +121,30 @@ class LocalDatabaseRepository private constructor(
         return statement.execute(sql)
     }
 
+    fun createSchemaIfNotExists(cmd: CreateSchemaCmd): Boolean {
+        requireValidName("SchemaName", cmd.schemaName)
+
+        val sql = """
+            CREATE SCHEMA IF NOT EXISTS ${cmd.schemaName};
+        """.trimIndent()
+
+        val statement = connection.createStatement()
+        return statement.execute(sql)
+    }
+
+    fun createDatabase(cmd: CreateSchemaCmd): Boolean {
+        requireValidName("SchemaName", cmd.schemaName)
+
+        val sql = """
+            CREATE SCHEMA IF NOT EXISTS ${cmd.schemaName};
+        """.trimIndent()
+
+        val statement = connection.createStatement()
+        return statement.execute(sql)
+    }
+
     private fun requireValidName(propName: String, value: String) {
-        require(value.validSqlTableName()) { "Invalid $propName - $value should satisfy ^[a-zA-Z0-9_]+\$ regex"}
+        require(value.validSqlTableName()) { "Invalid $propName - $value should satisfy ^[a-zA-Z0-9_.-]+\$ regex"}
     }
 
     fun updateUserMapping(cmd: UpdateUserMappingCmd) {
@@ -132,19 +159,58 @@ class LocalDatabaseRepository private constructor(
 
     }
 
-    companion object Factory {
-        fun getPostgresConnection(host: String, port: Int, database: String, user: String, password: String): LocalDatabaseRepository {
-            Class.forName("org.postgresql.Driver")
+    fun createDatabase(cmd: CreateDatabaseCmd): Boolean {
+        requireValidName("DatabaseName", cmd.databaseName)
 
-            val url = "jdbc:postgresql://$host:$port/$database"
-            val connection = DriverManager.getConnection(url, user, password)
+        val sql = """
+            CREATE DATABASE ${cmd.databaseName}
+        """.trimIndent()
 
-            return LocalDatabaseRepository(connection)
-        }
+        val statement = connection.createStatement()
+        return statement.execute(sql)
     }
 }
 
+object DbConnectionFactory {
+    fun getPostgresConnection(host: String, port: Int, database: String, user: String, password: String): Connection {
+        Class.forName("org.postgresql.Driver")
+
+        val url = "jdbc:postgresql://$host:$port/$database"
+
+        return DriverManager.getConnection(url, user, password);
+    }
+}
+
+class RemoteDbRepository (val connection: Connection) {
+    fun selectUserDefinedSchemas(): List<String> {
+        val sql = """
+            SELECT nspname AS schema_name
+            FROM pg_catalog.pg_namespace
+            WHERE nspname NOT IN ('pg_catalog', 'information_schema')
+              AND nspname !~ '^pg_toast'
+              AND nspname !~ '^pg_temp_';
+        """.trimIndent()
+
+        val statement = connection.createStatement()
+        val results = statement.executeQuery(sql)
+
+        val schemaNames = mutableListOf<String>()
+
+        while (results.next()) {
+            val schemaName = results.getString("schema_name")
+            schemaNames.add(schemaName)
+        }
+
+        return schemaNames
+    }
+}
+
+//fun String.validSqlTableName(): Boolean {
+//    val regex = Regex("^[a-zA-Z0-9_-]+\$")
+//    return this.matches(regex)
+//}
+
 fun String.validSqlTableName(): Boolean {
-    val regex = Regex("^[a-zA-Z0-9_-]+\$")
+    val regex = Regex("^[a-zA-Z0-9_.-]+\$")
     return this.matches(regex)
 }
