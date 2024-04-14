@@ -42,6 +42,10 @@ data class CreateDatabaseCmd(
     val databaseName: String,
 )
 
+data class ImportCustomEnumCmd(
+    val enum: PgEnumDefinition
+)
+
 class LocalDatabaseRepository(val connection: Connection) {
     fun createSchema(schemaName: String) {
 
@@ -132,6 +136,34 @@ class LocalDatabaseRepository(val connection: Connection) {
         return statement.execute(sql)
     }
 
+    fun importCustomEnum(cmd: ImportCustomEnumCmd): Boolean {
+        if (isTypeExists(cmd.enum.typeName)) {
+            return true
+        }
+
+        val labelsString = cmd.enum.labels.joinToString { "'$it'" }
+
+        val sql = """
+            CREATE TYPE ${cmd.enum.typeName} AS ENUM ($labelsString);
+        """.trimIndent()
+
+        val statement = connection.createStatement()
+        return statement.execute(sql)
+    }
+
+    private fun isTypeExists(typename: String): Boolean {
+        val sql = """
+            select exists (select 1 from pg_type where pg_type.typname = '$typename');
+        """.trimIndent()
+
+        val statement = connection.createStatement()
+        val result = statement.executeQuery(sql)
+
+        result.next()
+
+        return result.getBoolean(1)
+    }
+
     fun createDatabase(cmd: CreateSchemaCmd): Boolean {
         requireValidName("SchemaName", cmd.schemaName)
 
@@ -181,7 +213,7 @@ object DbConnectionFactory {
     }
 }
 
-class RemoteDbRepository (val connection: Connection) {
+class RemoteDbRepository (private val connection: Connection) {
     fun selectUserDefinedSchemas(): List<String> {
         val sql = """
             SELECT nspname AS schema_name
@@ -203,7 +235,40 @@ class RemoteDbRepository (val connection: Connection) {
 
         return schemaNames
     }
+
+    fun selectCustomEnums(): List<EnumMapping> {
+        val sql = """
+            SELECT pg_type.typname AS enumtype,
+            pg_enum.enumlabel AS enumlabel
+            FROM pg_type
+                JOIN pg_enum
+                    ON pg_enum.enumtypid = pg_type.oid;
+        """.trimIndent()
+
+        val statement = connection.createStatement()
+        val results = statement.executeQuery(sql)
+
+        val mappings = mutableListOf<EnumMapping>()
+
+        while (results.next()) {
+            val type = results.getString("enumtype")
+            val label = results.getString("enumlabel")
+            mappings.add(EnumMapping(type, label))
+        }
+
+        return mappings
+    }
 }
+
+data class EnumMapping(
+    val type: String,
+    val label: String
+)
+
+data class PgEnumDefinition(
+    val typeName: String,
+    val labels: List<String>
+)
 
 //fun String.validSqlTableName(): Boolean {
 //    val regex = Regex("^[a-zA-Z0-9_-]+\$")

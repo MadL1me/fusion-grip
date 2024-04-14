@@ -1,19 +1,12 @@
 package lime.plugins.fusiongrip.tasks
 
-import com.intellij.database.dataSource.DataSourceSchemaMapping
-import com.intellij.database.dataSource.DataSourceStorage
-import com.intellij.database.dataSource.DatabaseDriverManager
-import com.intellij.database.dataSource.LocalDataSource
 import com.intellij.openapi.project.Project
-import com.thoughtworks.xstream.io.HierarchicalStreamReader
-import com.thoughtworks.xstream.io.xml.StaxDriver
 import lime.plugins.fusiongrip.cli.CliCommand
 import lime.plugins.fusiongrip.config.GenerationConfig
 import lime.plugins.fusiongrip.database.*
 import lime.plugins.fusiongrip.platform.DataSourceRegistry
 import lime.plugins.fusiongrip.platform.DbType
 import lime.plugins.fusiongrip.platform.IdeDataSource
-import java.io.StringReader
 
 val scopeTemplate = """
   <schema-mapping>
@@ -140,6 +133,17 @@ class FuseSourcesTask {
             val localSchema = "${validDbName}_$schema";
 
             local.createSchemaIfNotExists(CreateSchemaCmd(localSchema))
+
+            val bb = remoteDb.selectUserDefinedSchemas()
+
+            val enums = remoteDb.selectCustomEnums()
+
+            val enumsDefinitions = enums.groupBy { it.type }
+                .map { PgEnumDefinition(it.key, it.value.map { v -> v.label }) }
+
+            for (definition in enumsDefinitions) {
+                local.importCustomEnum(ImportCustomEnumCmd(definition))
+            }
 
             local.importForeignSchema(ImportForeignSchemaCmd(
                 schema,
