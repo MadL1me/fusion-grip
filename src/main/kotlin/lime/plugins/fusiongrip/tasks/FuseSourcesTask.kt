@@ -7,6 +7,7 @@ import lime.plugins.fusiongrip.database.*
 import lime.plugins.fusiongrip.platform.DataSourceRegistry
 import lime.plugins.fusiongrip.platform.DbType
 import lime.plugins.fusiongrip.platform.IdeDataSource
+import lime.plugins.fusiongrip.platform.validSourceName
 
 val scopeTemplate = """
   <schema-mapping>
@@ -18,27 +19,14 @@ val scopeTemplate = """
   </schema-mapping>
 """.trimIndent()
 
-
 class FuseSourcesTask {
-    private val LOCALHOST = "localhost"
-    private val PGPORT = 5432
-    private val ADMIN_LOGIN = "postgres"
-    private val ADMIN_PASS = "postgres"
-
     fun action(project: Project, config: GenerationConfig): Pair<Boolean, String> {
         try {
             // Step 1 - Start docker
             var resultCode = CliCommand.createDockerPostgres().run()
 
-            var local = LocalDatabaseRepository(DbConnectionFactory.getPostgresConnection(
-                LOCALHOST,
-                PGPORT,
-                "db",
-                ADMIN_LOGIN,
-                ADMIN_PASS
-            ));
-
-            local.createExtensionIfNotExists()
+            var local = LocalDbFactory.getLocalDb("db")
+            local.createFdwExtensionIfNotExists()
 
             // Step 2 - Get Postgres(for now) Sources from IDE
             val sources = DataSourceRegistry.getIdeDataSources(project);
@@ -46,9 +34,59 @@ class FuseSourcesTask {
                 config.sourceNameRegex.matches(it.sourceName) && it.dbType != DbType.Unknown
             }
 
+            var remoteServers = mutableListOf<RemoteDbServer>()
+
             // Step 3 - Foreach source combine with FDW
             for (source in filteredSources) {
-                val success = createLocalSourceConnection(local, source)
+                val remoteDb = RemoteDbFactory.getRemoteDb(source)
+                val server = createLocalForeignServer(local, source)
+
+                remoteServers.add(RemoteDbServer(source, remoteDb, server))
+            }
+
+            val serverMap = getAllServersMap(remoteServers)
+
+            for (schemaKey in serverMap) {
+                val firstServer = schemaKey.value.first()
+                val localForeignSchema = "${firstServer.ideSource.sourceName}_${schemaKey.key.schema}".validSourceName()
+
+                importForeignCustomEnums(firstServer.remoteRepo, local)
+
+                // TODO: Кидать ошибку что такой сервернейм уже есть и надо либо помнеять либо
+                // вызвать тулзу в для другой папки, чтобы не было коллизий
+                local.createSchemaIfNotExists(CreateSchemaCmd(localForeignSchema))
+
+                val beforeForeignTables = local.getForeignTables(localForeignSchema)
+                for (t in beforeForeignTables) {
+                    local.dropForeignTableIfExists(localForeignSchema, t)
+                }
+
+                local.importForeignSchema(ImportForeignSchemaCmd(
+                    schemaKey.key.schema,
+                    firstServer.foreignServer.serverName,
+                    localForeignSchema
+                ))
+
+                val sourceName = replaceNumberWithAll(firstServer.ideSource.sourceName)
+                val localFinalSchema = localForeignSchema + "all"
+                local.createSchemaIfNotExists(CreateSchemaCmd(localFinalSchema))
+
+                val foreignTables = local.getForeignTables(localForeignSchema)
+
+                for (foreignTable in foreignTables) {
+                    local.createRealTableCopy(foreignTable, localForeignSchema, localFinalSchema)
+                }
+
+                var i = 0;
+                for (remoteServer in schemaKey.value.withIndex()) {
+                    for (table in schemaKey.key.tables) {
+                        local.createInheritedForeignTable("${schemaKey.key.schema}.${table.table}_${i}",
+                            table.table,
+                            "${localFinalSchema}.${table.table}",
+                            remoteServer.value.foreignServer.serverName)
+                        i++;
+                    }
+                }
             }
 
             //createIdeDbDataSource()
@@ -57,6 +95,114 @@ class FuseSourcesTask {
         }
         catch (e: Exception) {
             throw e;
+        }
+    }
+
+    private fun replaceNumberWithAll(input: String): String {
+        if (input.isEmpty()) return input
+
+        val firstChar = input.first()
+        val lastChar = input.last()
+
+        val modifiedFirst = if (firstChar.isDigit()) "all" + input.substring(1) else input
+        val modifiedLast = if (lastChar.isDigit()) modifiedFirst.dropLast(1) + "all" else modifiedFirst
+
+        return modifiedLast
+    }
+
+
+    private fun importForeignCustomEnums(remoteDb: RemoteDbRepository, local: LocalDbRepository) {
+        val enums = remoteDb.selectCustomEnums()
+
+        val enumsDefinitions = enums
+            .groupBy { it.type }
+            .map { PgEnumDefinition(it.key, it.value.map { v -> v.label }) }
+
+        for (definition in enumsDefinitions) {
+            local.importCustomEnum(ImportCustomEnumCmd(definition))
+        }
+    }
+
+    private fun getAllServersMap(remoteDbs: Collection<RemoteDbServer>): Map<SchemaGroupKey, List<RemoteDbServer>> {
+        val hashset = HashMap<SchemaGroupKey, MutableList<RemoteDbServer>>()
+
+        for ((source, db, serverDef) in remoteDbs) {
+            val schemas = db.selectUserDefinedSchemas()
+            val tables = db.selectTableDefenitions(schemas)
+
+            for (table in tables.groupBy { it.schema }) {
+                val key = SchemaGroupKey(table.key, table.value)
+
+                if (!hashset.containsKey(key)) {
+                    hashset[key] = ArrayList()
+                }
+
+                hashset[key]?.add(RemoteDbServer(source, db, serverDef))
+            }
+        }
+
+        return hashset
+    }
+
+    data class SchemaUnitDef(
+        val dbname: String,
+        val schema: String,
+        val tables: List<String>,
+        val source: IdeDataSource
+    )
+
+    data class SchemaGroupKey(
+        val schema: String,
+        val tables: List<TableDef>
+    )
+
+    private fun foo(local: LocalDbRepository, remoteDb: RemoteDbRepository, source: IdeDataSource) {
+        val validSourceServerName = source.sourceName.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
+
+        for (schema in remoteDb.selectUserDefinedSchemas()) {
+            val validDbName = source.dbName.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
+            val localSchema = "${validDbName}_$schema"
+
+            local.createSchemaIfNotExists(CreateSchemaCmd(localSchema))
+
+            // (shard1: bucket_1)
+            // (shard1: bucket_2)
+
+            // (shard2: bucket_3)
+            // (shard2: bucket_4)
+
+            // get all schemas from shard 1
+            // get all schemas from shard 2
+            // [shard1, bucket1, list<table_name>]
+            // [shard1, bucket2, list<table_name>]
+            // [shard2, bucket3, list<table_name>]
+            // [shard2, bucket4, list<table_name>]
+
+            // merge schemas if possible:
+            // [hash] => bucket1, bucket2, bucket3, bucket4
+            // or
+            // [hash_server1] => bucket1, bucket2
+            // [hash_server2] => bucket3, bucket4
+
+            // foreach hash:
+            // create one hash-schema on local connection: server_x-bucket_x
+            // import foreign schema to new hash-schema
+            // foreach foreign table create real table with no data to new hash-schema
+            // delete all foreign tables
+            // foreach value in [hash] list:
+            // create tables as inherited from created ones
+
+            // CREATE TABLE fuck AS TABLE batching_manager_public.batch_task WITH NO DATA;
+
+            // CREATE FOREIGN TABLE shard1_table () INHERITS (public.batch_task_second)
+            //    SERVER prod__batching_manager
+            //    OPTIONS (table_name 'batch_task');
+
+            local.importForeignSchema(ImportForeignSchemaCmd(
+                schema,
+                validSourceServerName,
+                localSchema,
+            ))
         }
     }
 
@@ -93,12 +239,12 @@ class FuseSourcesTask {
 //        store.addDataSource(newDataSource)
 //    }
 
-    private fun createLocalSourceConnection(local: LocalDatabaseRepository, source: IdeDataSource): Boolean {
+    private fun createLocalForeignServer(local: LocalDbRepository, source: IdeDataSource): ForeignServerDef {
         val credentialsProvider = CredentialsProvider.getPgPassProvider()
         val creds = credentialsProvider.getCredentialsForDataSource(source)
         val fdwName = "postgres_fdw"
 
-        val validSourceServerName = source.sourceName.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
+        val validSourceServerName = source.validSourceName()
 
         local.createForeignServer(CreateForeignServerCmd(
             validSourceServerName,
@@ -109,49 +255,89 @@ class FuseSourcesTask {
         ))
 
         local.createUserMapping(CreateUserMappingCmd(
-            ADMIN_PASS,
+            DbConstants.ADMIN_PASS,
             validSourceServerName,
             creds.username,
             creds.password,
         ))
 
         local.grantUsage(GrantForeignServerUsageCmd(
-            ADMIN_PASS,
+            DbConstants.ADMIN_PASS,
             validSourceServerName,
         ))
 
-        val remoteDb = RemoteDbRepository(DbConnectionFactory.getPostgresConnection(
+        return ForeignServerDef(
+            validSourceServerName,
+            fdwName,
             source.host,
             source.port,
             source.dbName,
-            creds.username,
-            creds.password
-        ))
+        )
 
-        for (schema in remoteDb.selectUserDefinedSchemas()) {
-            val validDbName = source.dbName.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
-            val localSchema = "${validDbName}_$schema";
-
-            local.createSchemaIfNotExists(CreateSchemaCmd(localSchema))
-
-            val bb = remoteDb.selectUserDefinedSchemas()
-
-            val enums = remoteDb.selectCustomEnums()
-
-            val enumsDefinitions = enums.groupBy { it.type }
-                .map { PgEnumDefinition(it.key, it.value.map { v -> v.label }) }
-
-            for (definition in enumsDefinitions) {
-                local.importCustomEnum(ImportCustomEnumCmd(definition))
-            }
-
-            local.importForeignSchema(ImportForeignSchemaCmd(
-                schema,
-                validSourceServerName,
-                localSchema,
-            ))
-        }
-
-        return true
+//        for (schema in remoteDb.selectUserDefinedSchemas()) {
+//            val validDbName = source.dbName.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
+//            val localSchema = "${validDbName}_$schema";
+//
+//            local.createSchemaIfNotExists(CreateSchemaCmd(localSchema))
+//
+//            // (shard1: bucket_1)
+//            // (shard1: bucket_2)
+//
+//            // (shard2: bucket_3)
+//            // (shard2: bucket_4)
+//
+//            // get all schemas from shard 1
+//            // get all schemas from shard 2
+//            // [shard1, bucket1, list<table_name>]
+//            // [shard1, bucket2, list<table_name>]
+//            // [shard2, bucket3, list<table_name>]
+//            // [shard2, bucket4, list<table_name>]
+//
+//            // merge schemas if possible:
+//            // [hash] => bucket1, bucket2, bucket3, bucket4
+//            // or
+//            // [hash_server1] => bucket1, bucket2
+//            // [hash_server2] => bucket3, bucket4
+//
+//            // foreach hash:
+//                // create one hash-schema on local connection: server_x-bucket_x
+//                // import foreign schema to new hash-schema
+//                // foreach foreign table create real table with no data to new hash-schema
+//                // delete all foreign tables
+//                // foreach value in [hash] list:
+//                    // create tables as inherited from created ones
+//
+//            // CREATE TABLE fuck AS TABLE batching_manager_public.batch_task WITH NO DATA;
+//
+//            // CREATE FOREIGN TABLE shard1_table () INHERITS (public.batch_task_second)
+//            //    SERVER prod__batching_manager
+//            //    OPTIONS (table_name 'batch_task');
+//
+//            local.importForeignSchema(ImportForeignSchemaCmd(
+//                schema,
+//                validSourceServerName,
+//                localSchema,
+//            ))
+//        }
     }
 }
+
+data class ForeignServerDef(
+    val serverName: String,
+    val fdwName: String,
+    val host: String,
+    val port: Int,
+    val dbName: String
+)
+
+data class RemoteDbServer(
+    val ideSource: IdeDataSource,
+    val remoteRepo: RemoteDbRepository,
+    val foreignServer: ForeignServerDef
+)
+
+data class ForeignTableDef(
+    val server: String,
+    val schema: String,
+    val table:  String,
+)

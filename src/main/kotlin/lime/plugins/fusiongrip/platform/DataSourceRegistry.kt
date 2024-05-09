@@ -10,11 +10,19 @@ data class IdeDataSource(
     val port: Int,
     val dbName: String,
     val dbType: DbType,
-)
+) {
+    fun validSourceName(): String {
+        return this.sourceName.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
+    }
+}
 
 enum class DbType {
     Postgres,
     Unknown
+}
+
+fun String.validSourceName(): String {
+    return this.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
 }
 
 //fun DbType.toForeignDataWrapper(): String {

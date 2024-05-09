@@ -1,5 +1,7 @@
 package lime.plugins.fusiongrip.database
 
+import lime.plugins.fusiongrip.platform.IdeDataSource
+import lime.plugins.fusiongrip.platform.validSourceName
 import java.sql.Connection
 import java.sql.DriverManager
 
@@ -46,24 +48,35 @@ data class ImportCustomEnumCmd(
     val enum: PgEnumDefinition
 )
 
-class LocalDatabaseRepository(val connection: Connection) {
-    fun createSchema(schemaName: String) {
+class LocalDbRepository(val connection: Connection) {
 
+    fun getForeignTables(schema: String): List<String> {
+        val sql = "SELECT * FROM information_schema.foreign_tables WHERE foreign_table_schema = '$schema'"
+        val statement = connection.createStatement()
+
+        val schemaNames = mutableListOf<String>()
+        val results = statement.executeQuery(sql)
+
+        while (results.next()) {
+            val schemaName = results.getString("foreign_table_name")
+            schemaNames.add(schemaName)
+        }
+
+        return schemaNames
     }
 
-    fun createDataWrapper() {
+    fun createRealTableCopy(tableName: String, fromLocalSchema: String, toLocalSchema: String): Boolean {
+        val sql = "CREATE TABLE IF NOT EXISTS $toLocalSchema.$tableName AS TABLE $fromLocalSchema.$tableName WITH NO DATA;"
 
+        val statement = connection.createStatement()
+        return statement.execute(sql)
     }
 
-    fun createForeignUser() {
-
-    }
-
-    fun createExtensionIfNotExists(): Boolean {
+    fun createFdwExtensionIfNotExists(): Boolean {
         val sql = "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
         val statement = connection.createStatement()
 
-        return statement.execute(sql);
+        return statement.execute(sql)
     }
 
     fun createForeignServer(cmd: CreateForeignServerCmd): Boolean {
@@ -111,6 +124,13 @@ class LocalDatabaseRepository(val connection: Connection) {
         return statement.execute(sql)
     }
 
+    fun dropForeignTableIfExists(schema: String, table: String): Boolean {
+        val sql = "DROP FOREIGN TABLE IF EXISTS $schema.$table"
+
+        val statement = connection.createStatement()
+        return statement.execute(sql)
+    }
+
     fun importForeignSchema(cmd: ImportForeignSchemaCmd): Boolean {
         requireValidName("ServerName", cmd.serverName)
         requireValidName("LocalSchema", cmd.localSchema)
@@ -118,8 +138,24 @@ class LocalDatabaseRepository(val connection: Connection) {
 
         val sql = """
             IMPORT FOREIGN SCHEMA ${cmd.foreignSchema}
-                FROM SERVER ${cmd.serverName} INTO ${cmd.localSchema};
+                FROM SERVER ${cmd.serverName} INTO ${cmd.localSchema.validSourceName()};
         """.trimIndent()
+
+        println(sql)
+
+        val statement = connection.createStatement()
+        return statement.execute(sql)
+    }
+
+    fun createInheritedForeignTable(foreignTableName: String,
+                                    foreignTableOrig: String,
+                                    inheritsTable: String,
+                                    server: String): Boolean {
+        val sql = """
+                    CREATE FOREIGN TABLE IF NOT EXISTS $foreignTableName () INHERITS ($inheritsTable)
+                        SERVER $server
+                        OPTIONS (table_name '$foreignTableOrig');
+                  """
 
         val statement = connection.createStatement()
         return statement.execute(sql)
@@ -213,6 +249,42 @@ object DbConnectionFactory {
     }
 }
 
+object RemoteDbFactory {
+    fun getRemoteDb(source: IdeDataSource): RemoteDbRepository {
+        val credentialsProvider = CredentialsProvider.getPgPassProvider()
+        val creds = credentialsProvider.getCredentialsForDataSource(source)
+
+        return RemoteDbRepository(
+            DbConnectionFactory.getPostgresConnection(
+                source.host,
+                source.port,
+                source.dbName,
+                creds.username,
+                creds.password
+            )
+        )
+    }
+}
+
+object DbConstants {
+    const val LOCALHOST = "localhost"
+    const val PGPORT = 5432
+    const val ADMIN_LOGIN = "postgres"
+    const val ADMIN_PASS = "postgres"
+}
+
+object LocalDbFactory {
+    fun getLocalDb(dbname: String): LocalDbRepository {
+        return LocalDbRepository(DbConnectionFactory.getPostgresConnection(
+            DbConstants.LOCALHOST,
+            DbConstants.PGPORT,
+            dbname,
+            DbConstants.ADMIN_LOGIN,
+            DbConstants.ADMIN_PASS
+        ))
+    }
+}
+
 class RemoteDbRepository (private val connection: Connection) {
     fun selectUserDefinedSchemas(): List<String> {
         val sql = """
@@ -234,6 +306,32 @@ class RemoteDbRepository (private val connection: Connection) {
         }
 
         return schemaNames
+    }
+
+    fun selectTableDefenitions(schemas: List<String>): List<TableDef> {
+        val tableDefs = mutableListOf<TableDef>()
+        val metadata = connection.metaData
+
+        for (schemaName in schemas) {
+            val tablesResultSet = metadata.getTables(null, schemaName, "%", arrayOf("TABLE"))
+            while (tablesResultSet.next()) {
+                val tableName = tablesResultSet.getString("TABLE_NAME")
+
+                val columnsResultSet = metadata.getColumns(null, schemaName, tableName, null)
+                val columns = mutableListOf<ColumnDef>()
+                while (columnsResultSet.next()) {
+                    val columnName = columnsResultSet.getString("COLUMN_NAME")
+                    val dataType = columnsResultSet.getString("TYPE_NAME")
+                    columns.add(ColumnDef(columnName, dataType))
+                }
+
+                if (columns.isNotEmpty()) {
+                    tableDefs.add(TableDef(schemaName, tableName, columns))
+                }
+            }
+        }
+
+        return tableDefs
     }
 
     fun selectCustomEnums(): List<EnumMapping> {
@@ -259,6 +357,17 @@ class RemoteDbRepository (private val connection: Connection) {
         return mappings
     }
 }
+
+data class TableDef(
+    val schema: String,
+    val table: String,
+    val columns: List<ColumnDef>
+)
+
+data class ColumnDef(
+    val name: String,
+    val datatype: String
+)
 
 data class EnumMapping(
     val type: String,
