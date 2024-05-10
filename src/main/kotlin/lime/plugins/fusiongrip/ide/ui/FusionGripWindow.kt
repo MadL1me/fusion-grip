@@ -102,7 +102,7 @@ class FusionGripWindow : ToolWindowFactory, DumbAware {
 
                 if (response == Messages.YES) {
                     val config = GenerationConfig(
-                        ".*batching-manager.*".toRegex(),
+                        ".*wms.*".toRegex(),
                         "a",
                         "a",
                         true,

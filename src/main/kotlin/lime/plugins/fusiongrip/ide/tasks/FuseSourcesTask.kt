@@ -7,7 +7,7 @@ import lime.plugins.fusiongrip.database.*
 import lime.plugins.fusiongrip.ide.datasource.DataSourceRegistry
 import lime.plugins.fusiongrip.ide.datasource.DbType
 import lime.plugins.fusiongrip.ide.datasource.IdeDataSource
-import lime.plugins.fusiongrip.ide.datasource.validSourceName
+import lime.plugins.fusiongrip.ide.datasource.toValidSourceName
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
@@ -53,7 +53,7 @@ class FuseSourcesTask {
 
             for (schemaGroupKey in serverMap) {
                 val firstServer = schemaGroupKey.value.first()
-                val localForeignSchema = "${firstServer.ideSource.sourceName}_${schemaGroupKey.key.schema}".validSourceName()
+                val localForeignSchema = "${firstServer.ideSource.sourceName}_${schemaGroupKey.key.schema}".toValidSourceName()
 
                 importForeignCustomEnums(firstServer.remoteRepo, local)
 
@@ -69,7 +69,8 @@ class FuseSourcesTask {
                 local.importForeignSchema(ImportForeignSchemaCmd(
                     schemaGroupKey.key.schema,
                     firstServer.foreignServer.serverName,
-                    localForeignSchema
+                    localForeignSchema,
+                    schemaGroupKey.key.tables.joinToString(",") { "\"${it.table}\"" }
                 ))
 
                 val localFinalSchema = formatSourceNameForDataSource(localForeignSchema)
@@ -83,9 +84,10 @@ class FuseSourcesTask {
 
                 for (remoteServer in schemaGroupKey.value.withIndex()) {
                     for (table in schemaGroupKey.key.tables) {
-                        local.createInheritedForeignTable("${schemaGroupKey.key.schema}.${table.table}_${remoteServer.value.foreignServer.serverName}",
+                        local.createInheritedForeignTable(
+                            "\"${schemaGroupKey.key.schema}.${table.table}_${remoteServer.value.foreignServer.serverName}\"",
                             table.table,
-                            "${localFinalSchema}.${table.table}",
+                            "${localFinalSchema}.\"${table.table}\"",
                             remoteServer.value.foreignServer.serverName)
                     }
                 }
@@ -96,7 +98,7 @@ class FuseSourcesTask {
             return Pair(false, "Failed to run result")
         }
         catch (e: Exception) {
-            throw e;
+            throw e
         }
     }
 
@@ -107,7 +109,7 @@ class FuseSourcesTask {
     }
 
     private fun formatSourceNameForDataSource(input: String): String {
-        return input.replace("[^A-Za-z0-9 ]".toRegex(), "") + "combined"
+        return input.replace("\\d+".toRegex(), "") + "_combined"
     }
 
     private fun importForeignCustomEnums(remoteDb: RemoteDbRepository, local: LocalDbRepository) {
@@ -197,11 +199,11 @@ class FuseSourcesTask {
             //    SERVER prod__batching_manager
             //    OPTIONS (table_name 'batch_task');
 
-            local.importForeignSchema(ImportForeignSchemaCmd(
-                schema,
-                validSourceServerName,
-                localSchema,
-            ))
+//            local.importForeignSchema(ImportForeignSchemaCmd(
+//                schema,
+//                validSourceServerName,
+//                localSchema,
+//            ))
         }
     }
 

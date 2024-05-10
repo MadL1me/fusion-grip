@@ -1,7 +1,7 @@
 package lime.plugins.fusiongrip.database
 
 import lime.plugins.fusiongrip.ide.datasource.IdeDataSource
-import lime.plugins.fusiongrip.ide.datasource.validSourceName
+import lime.plugins.fusiongrip.ide.datasource.toValidSourceName
 import java.sql.Connection
 import java.sql.DriverManager
 
@@ -29,6 +29,7 @@ data class ImportForeignSchemaCmd(
     val foreignSchema: String,
     val serverName: String,
     val localSchema: String,
+    val joinedTables: String,
 )
 
 data class CreateSchemaCmd(
@@ -57,7 +58,8 @@ class LocalDbRepository(val connection: Connection) {
     }
 
     fun createRealTableCopy(tableName: String, fromLocalSchema: String, toLocalSchema: String): Boolean {
-        val sql = "CREATE TABLE IF NOT EXISTS $toLocalSchema.$tableName AS TABLE $fromLocalSchema.$tableName WITH NO DATA;"
+        val sql =
+            """CREATE TABLE IF NOT EXISTS $toLocalSchema."$tableName" AS TABLE $fromLocalSchema."$tableName" WITH NO DATA;"""
 
         val statement = connection.createStatement()
         return statement.execute(sql)
@@ -80,7 +82,7 @@ class LocalDbRepository(val connection: Connection) {
         val sql = """
             CREATE SERVER IF NOT EXISTS ${cmd.serverName}
                 FOREIGN DATA WRAPPER ${cmd.fdwName}
-                OPTIONS (host '${cmd.host}', port '${cmd.port}', dbname '${cmd.dbName}');
+                OPTIONS (host '${cmd.host}', port '${cmd.port}', dbname '${cmd.dbName}', use_remote_estimate 'true');
         """.trimIndent()
 
         val statement = connection.createStatement()
@@ -142,8 +144,8 @@ class LocalDbRepository(val connection: Connection) {
         requireValidName("ForeignSchema", cmd.foreignSchema)
 
         val sql = """
-            IMPORT FOREIGN SCHEMA ${cmd.foreignSchema}
-                FROM SERVER ${cmd.serverName} INTO ${cmd.localSchema.validSourceName()};
+            IMPORT FOREIGN SCHEMA ${cmd.foreignSchema} LIMIT TO (${cmd.joinedTables})
+                FROM SERVER ${cmd.serverName} INTO ${cmd.localSchema.toValidSourceName()};
         """.trimIndent()
 
         println(sql)
@@ -283,23 +285,43 @@ class RemoteDbRepository (private val connection: Connection) {
 
     fun selectTableDefenitions(schemas: List<String>): List<TableDef> {
         val tableDefs = mutableListOf<TableDef>()
-        val metadata = connection.metaData
 
-        for (schemaName in schemas) {
-            val tablesResultSet = metadata.getTables(null, schemaName, "%", arrayOf("TABLE"))
-            while (tablesResultSet.next()) {
-                val tableName = tablesResultSet.getString("TABLE_NAME")
+        schemas.forEach { schemaName ->
+            val tableQuery = """
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = ? AND table_type = 'BASE TABLE'
+            ORDER BY table_name DESC;
+        """
+            connection.prepareStatement(tableQuery).use { tableStmt ->
+                tableStmt.setString(1, schemaName)
+                val tablesResultSet = tableStmt.executeQuery()
 
-                val columnsResultSet = metadata.getColumns(null, schemaName, tableName, null)
-                val columns = mutableListOf<ColumnDef>()
-                while (columnsResultSet.next()) {
-                    val columnName = columnsResultSet.getString("COLUMN_NAME")
-                    val dataType = columnsResultSet.getString("TYPE_NAME")
-                    columns.add(ColumnDef(columnName, dataType))
-                }
+                while (tablesResultSet.next()) {
+                    val tableName = tablesResultSet.getString("table_name")
 
-                if (columns.isNotEmpty()) {
-                    tableDefs.add(TableDef(schemaName, tableName, columns))
+                    // Query to get all columns for each table
+                    val columnQuery = """
+                    SELECT column_name, data_type 
+                    FROM information_schema.columns 
+                    WHERE table_schema = ? AND table_name = ?
+                """
+                    connection.prepareStatement(columnQuery).use { columnStmt ->
+                        columnStmt.setString(1, schemaName)
+                        columnStmt.setString(2, tableName)
+                        val columnsResultSet = columnStmt.executeQuery()
+
+                        val columns = mutableListOf<ColumnDef>()
+                        while (columnsResultSet.next()) {
+                            val columnName = columnsResultSet.getString("column_name")
+                            val dataType = columnsResultSet.getString("data_type")
+                            columns.add(ColumnDef(columnName, dataType))
+                        }
+
+                        if (columns.isNotEmpty()) {
+                            tableDefs.add(TableDef(schemaName, tableName, columns))
+                        }
+                    }
                 }
             }
         }

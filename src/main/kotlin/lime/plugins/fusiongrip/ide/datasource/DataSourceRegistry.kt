@@ -21,7 +21,7 @@ enum class DbType {
     Unknown
 }
 
-fun String.validSourceName(): String {
+fun String.toValidSourceName(): String {
     return this.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
 }
 
