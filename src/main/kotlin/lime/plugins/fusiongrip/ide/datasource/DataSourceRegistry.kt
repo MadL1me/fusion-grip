@@ -1,4 +1,4 @@
-package lime.plugins.fusiongrip.platform
+package lime.plugins.fusiongrip.ide.datasource
 
 import com.intellij.database.dataSource.*
 import com.intellij.openapi.project.Project
@@ -24,12 +24,6 @@ enum class DbType {
 fun String.validSourceName(): String {
     return this.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
 }
-
-//fun DbType.toForeignDataWrapper(): String {
-//    when (this) {
-//        DbType.Postgres -> "postgres_fdw"
-//    }
-//}
 
 object DataSourceRegistry {
 

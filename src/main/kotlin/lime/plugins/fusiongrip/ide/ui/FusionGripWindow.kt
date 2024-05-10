@@ -1,4 +1,4 @@
-package lime.plugins.fusiongrip;
+package lime.plugins.fusiongrip.ide.ui;
 
 import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationGroupManager
@@ -15,7 +15,7 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.content.ContentFactory
 import lime.plugins.fusiongrip.config.GenerationConfig
-import lime.plugins.fusiongrip.tasks.FuseSourcesTask
+import lime.plugins.fusiongrip.ide.tasks.FuseSourcesTask
 import org.jetbrains.annotations.NotNull
 import java.awt.BorderLayout
 import java.awt.Dimension

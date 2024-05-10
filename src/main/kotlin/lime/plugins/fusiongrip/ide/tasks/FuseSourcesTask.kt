@@ -1,13 +1,15 @@
-package lime.plugins.fusiongrip.tasks
+package lime.plugins.fusiongrip.ide.tasks
 
 import com.intellij.openapi.project.Project
 import lime.plugins.fusiongrip.cli.CliCommand
 import lime.plugins.fusiongrip.config.GenerationConfig
 import lime.plugins.fusiongrip.database.*
-import lime.plugins.fusiongrip.platform.DataSourceRegistry
-import lime.plugins.fusiongrip.platform.DbType
-import lime.plugins.fusiongrip.platform.IdeDataSource
-import lime.plugins.fusiongrip.platform.validSourceName
+import lime.plugins.fusiongrip.ide.datasource.DataSourceRegistry
+import lime.plugins.fusiongrip.ide.datasource.DbType
+import lime.plugins.fusiongrip.ide.datasource.IdeDataSource
+import lime.plugins.fusiongrip.ide.datasource.validSourceName
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 val scopeTemplate = """
   <schema-mapping>
@@ -25,7 +27,10 @@ class FuseSourcesTask {
             // Step 1 - Start docker
             var resultCode = CliCommand.createDockerPostgres().run()
 
-            var local = LocalDbFactory.getLocalDb("db")
+            // Remote all old setups:
+            pruneDatabase()
+
+            var local = LocalDbFactory.getLocalDb(DbConstants.DEFAULT_DB_NAME)
             local.createFdwExtensionIfNotExists()
 
             // Step 2 - Get Postgres(for now) Sources from IDE
@@ -46,9 +51,9 @@ class FuseSourcesTask {
 
             val serverMap = getAllServersMap(remoteServers)
 
-            for (schemaKey in serverMap) {
-                val firstServer = schemaKey.value.first()
-                val localForeignSchema = "${firstServer.ideSource.sourceName}_${schemaKey.key.schema}".validSourceName()
+            for (schemaGroupKey in serverMap) {
+                val firstServer = schemaGroupKey.value.first()
+                val localForeignSchema = "${firstServer.ideSource.sourceName}_${schemaGroupKey.key.schema}".validSourceName()
 
                 importForeignCustomEnums(firstServer.remoteRepo, local)
 
@@ -57,18 +62,17 @@ class FuseSourcesTask {
                 local.createSchemaIfNotExists(CreateSchemaCmd(localForeignSchema))
 
                 val beforeForeignTables = local.getForeignTables(localForeignSchema)
-                for (t in beforeForeignTables) {
-                    local.dropForeignTableIfExists(localForeignSchema, t)
+                for (table in beforeForeignTables) {
+                    local.dropForeignTableIfExists(localForeignSchema, table)
                 }
 
                 local.importForeignSchema(ImportForeignSchemaCmd(
-                    schemaKey.key.schema,
+                    schemaGroupKey.key.schema,
                     firstServer.foreignServer.serverName,
                     localForeignSchema
                 ))
 
-                val sourceName = replaceNumberWithAll(firstServer.ideSource.sourceName)
-                val localFinalSchema = localForeignSchema + "all"
+                val localFinalSchema = formatSourceNameForDataSource(localForeignSchema)
                 local.createSchemaIfNotExists(CreateSchemaCmd(localFinalSchema))
 
                 val foreignTables = local.getForeignTables(localForeignSchema)
@@ -77,14 +81,12 @@ class FuseSourcesTask {
                     local.createRealTableCopy(foreignTable, localForeignSchema, localFinalSchema)
                 }
 
-                var i = 0;
-                for (remoteServer in schemaKey.value.withIndex()) {
-                    for (table in schemaKey.key.tables) {
-                        local.createInheritedForeignTable("${schemaKey.key.schema}.${table.table}_${i}",
+                for (remoteServer in schemaGroupKey.value.withIndex()) {
+                    for (table in schemaGroupKey.key.tables) {
+                        local.createInheritedForeignTable("${schemaGroupKey.key.schema}.${table.table}_${remoteServer.value.foreignServer.serverName}",
                             table.table,
                             "${localFinalSchema}.${table.table}",
                             remoteServer.value.foreignServer.serverName)
-                        i++;
                     }
                 }
             }
@@ -98,18 +100,15 @@ class FuseSourcesTask {
         }
     }
 
-    private fun replaceNumberWithAll(input: String): String {
-        if (input.isEmpty()) return input
-
-        val firstChar = input.first()
-        val lastChar = input.last()
-
-        val modifiedFirst = if (firstChar.isDigit()) "all" + input.substring(1) else input
-        val modifiedLast = if (lastChar.isDigit()) modifiedFirst.dropLast(1) + "all" else modifiedFirst
-
-        return modifiedLast
+    private fun pruneDatabase() {
+        val db = LocalDbFactory.getLocalDb(DbConstants.POSTGRES_DB_NAME)
+        db.dropDatabase(DbConstants.DEFAULT_DB_NAME)
+        db.createDatabase(DbConstants.DEFAULT_DB_NAME)
     }
 
+    private fun formatSourceNameForDataSource(input: String): String {
+        return input.replace("[^A-Za-z0-9 ]".toRegex(), "") + "combined"
+    }
 
     private fun importForeignCustomEnums(remoteDb: RemoteDbRepository, local: LocalDbRepository) {
         val enums = remoteDb.selectCustomEnums()

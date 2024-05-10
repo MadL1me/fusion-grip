@@ -27,7 +27,7 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow id="Lime.Window.FusionGrip" secondary="true" icon="AllIcons.Toolwindows.WebToolWindow" anchor="right"
-                    factoryClass="lime.plugins.fusiongrip.FusionGripWindow"/>
+                    factoryClass="lime.plugins.fusiongrip.ide.ui.FusionGripWindow"/>
         <notificationGroup id="Lime.FusionGrip"
                            displayType="BALLOON"
                            key="lime.fusiongrip.group"/>

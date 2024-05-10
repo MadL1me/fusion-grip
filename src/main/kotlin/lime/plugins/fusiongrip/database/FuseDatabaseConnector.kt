@@ -1,7 +1,7 @@
 package lime.plugins.fusiongrip.database
 
-import lime.plugins.fusiongrip.platform.IdeDataSource
-import lime.plugins.fusiongrip.platform.validSourceName
+import lime.plugins.fusiongrip.ide.datasource.IdeDataSource
+import lime.plugins.fusiongrip.ide.datasource.validSourceName
 import java.sql.Connection
 import java.sql.DriverManager
 
@@ -20,11 +20,6 @@ data class CreateUserMappingCmd(
     val foreignPassword: String,
 )
 
-data class UpdateUserMappingCmd(
-    val user: String,
-    val password: String,
-)
-
 data class GrantForeignServerUsageCmd(
     val localUsername: String,
     val serverName: String,
@@ -38,10 +33,6 @@ data class ImportForeignSchemaCmd(
 
 data class CreateSchemaCmd(
     val schemaName: String,
-)
-
-data class CreateDatabaseCmd(
-    val databaseName: String,
 )
 
 data class ImportCustomEnumCmd(
@@ -125,7 +116,21 @@ class LocalDbRepository(val connection: Connection) {
     }
 
     fun dropForeignTableIfExists(schema: String, table: String): Boolean {
-        val sql = "DROP FOREIGN TABLE IF EXISTS $schema.$table"
+        val sql = "DROP FOREIGN TABLE IF EXISTS $schema.$table;"
+
+        val statement = connection.createStatement()
+        return statement.execute(sql)
+    }
+
+    fun createDatabase(dbName: String): Boolean {
+        val sql = "CREATE DATABASE $dbName;"
+
+        val statement = connection.createStatement()
+        return statement.execute(sql)
+    }
+
+    fun dropDatabase(dbName: String): Boolean {
+        val sql = "DROP DATABASE IF EXISTS $dbName WITH (FORCE);"
 
         val statement = connection.createStatement()
         return statement.execute(sql)
@@ -200,42 +205,8 @@ class LocalDbRepository(val connection: Connection) {
         return result.getBoolean(1)
     }
 
-    fun createDatabase(cmd: CreateSchemaCmd): Boolean {
-        requireValidName("SchemaName", cmd.schemaName)
-
-        val sql = """
-            CREATE SCHEMA IF NOT EXISTS ${cmd.schemaName};
-        """.trimIndent()
-
-        val statement = connection.createStatement()
-        return statement.execute(sql)
-    }
-
     private fun requireValidName(propName: String, value: String) {
         require(value.validSqlTableName()) { "Invalid $propName - $value should satisfy ^[a-zA-Z0-9_.-]+\$ regex"}
-    }
-
-    fun updateUserMapping(cmd: UpdateUserMappingCmd) {
-
-    }
-
-    fun deleteFdw() {
-
-    }
-
-    fun grantUsageForUser() {
-
-    }
-
-    fun createDatabase(cmd: CreateDatabaseCmd): Boolean {
-        requireValidName("DatabaseName", cmd.databaseName)
-
-        val sql = """
-            CREATE DATABASE ${cmd.databaseName}
-        """.trimIndent()
-
-        val statement = connection.createStatement()
-        return statement.execute(sql)
     }
 }
 
@@ -271,6 +242,8 @@ object DbConstants {
     const val PGPORT = 5432
     const val ADMIN_LOGIN = "postgres"
     const val ADMIN_PASS = "postgres"
+    const val DEFAULT_DB_NAME = "db"
+    const val POSTGRES_DB_NAME = "postgres"
 }
 
 object LocalDbFactory {
@@ -378,11 +351,6 @@ data class PgEnumDefinition(
     val typeName: String,
     val labels: List<String>
 )
-
-//fun String.validSqlTableName(): Boolean {
-//    val regex = Regex("^[a-zA-Z0-9_-]+\$")
-//    return this.matches(regex)
-//}
 
 fun String.validSqlTableName(): Boolean {
     val regex = Regex("^[a-zA-Z0-9_.-]+\$")

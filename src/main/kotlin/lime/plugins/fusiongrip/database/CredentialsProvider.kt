@@ -1,6 +1,6 @@
 package lime.plugins.fusiongrip.database
 
-import lime.plugins.fusiongrip.platform.IdeDataSource
+import lime.plugins.fusiongrip.ide.datasource.IdeDataSource
 import java.io.File
 
 data class DbConnectionCredentials(
