@@ -2,6 +2,10 @@ package lime.plugins.fusiongrip.ide.datasource
 
 import com.intellij.database.dataSource.*
 import com.intellij.openapi.project.Project
+import com.thoughtworks.xstream.io.HierarchicalStreamReader
+import com.thoughtworks.xstream.io.xml.StaxDriver
+import lime.plugins.fusiongrip.database.DbConstants
+import java.io.StringReader
 
 data class IdeDataSource(
     val sourceName: String,
@@ -26,29 +30,89 @@ fun String.toValidSourceName(): String {
 }
 
 object DataSourceRegistry {
+    private const val POSTGRES_DRIVER = "org.postgresql.Driver"
+
+    private const val scopeTemplate =
+        """
+          <schema-mapping>
+            <introspection-scope>
+              <node kind="database" qname="%s">
+                <node kind="schema" negative="1" condition="%s" />
+              </node>
+            </introspection-scope>
+          </schema-mapping>
+        """
 
     fun getIdeDataSources(project: Project): List<IdeDataSource> {
         val storage = DataSourceStorage.getProjectStorage(project)
 
-        val ideSources = storage.dataSources.map { IdeDataSource(
-            it.name,
-            it.username,
-            getHostFromPgConnectionString(it.url.toString().removePrefix("jdbc:")) ?: throw Exception("Failed to get host"),
-            6532,
-            it.url?.split('/')?.last() ?: throw Exception("Failed to get dbName"), // somehow get from jdbc?
-            driverToDbType(it.databaseDriver?.name ?: "unknown")
+        val ideSources = storage.dataSources.map {
+            val components = extractJdbcComponents(it.url.toString())
+                ?: throw Exception("Cannot parse jdbc url, it should satisfy following regex: ^jdbc:postgresql://([^:]+):(\\d+)/([^/]+)\$")
+
+            IdeDataSource(
+                it.name,
+                it.username,
+                components.host,
+                components.port,
+                components.dbName,
+                driverToDbType(it.databaseDriver?.name ?: "unknown")
         )}
 
-        return ideSources;
+        return ideSources
     }
 
-    fun createLocalDataSource(host: String,   project: Project) {
-        val storage = DataSourceStorage.getProjectStorage(project)
+//    fun createIdeDbDataSource(project: Project, source: IdeDataSource) {
+//        val store = DataSourceStorage.getProjectStorage(project)
+//
+//        val jdbc = getJdbcUrl(source)
+//
+//        val stringReader = StringReader(String.format(scopeTemplate, source.dbName, ".*"))
+//        val reader: HierarchicalStreamReader = StaxDriver().createReader(stringReader)
+//        val schema = DataSourceSchemaMapping()
+//        schema.deserialize(reader)
+//
+//        val newDataSource = LocalDataSource.create(
+//            "fusion-source",
+//            POSTGRES_DRIVER,
+//            jdbc,
+//            DbConstants.ADMIN_LOGIN,
+//        )
+//
+//        val postgresDriver = DatabaseDriverManager.getInstance().getDriver("postgresql")
+//
+//        //newDataSource.introspectionScope = schemaPattern
+//        newDataSource.authProviderId = "pgpass"
+//        newDataSource.databaseDriver = postgresDriver
+//        newDataSource.schemaMapping = schema
+//        newDataSource.isAutoSynchronize = true
+//        newDataSource.groupName = "${config.groupPrefix}"
+//
+//        store.addDataSource(newDataSource)
+//    }
+//
+//    private fun getJdbcUrl(source: IdeDataSource): String {
+//        return "jdbc:postgresql://${source.host}}:${source.port}/${source.dbName}"
+//    }
 
-        val dataSource = LocalDataSource()
+    private fun extractJdbcComponents(jdbcUrl: String): JdbcComponents? {
+        val pattern = Regex("^jdbc:postgresql://([^:]+):(\\d+)/([^/]+)$")
+        val matchResult = pattern.matchEntire(jdbcUrl)
 
-        storage.addDataSource(dataSource)
+        return matchResult?.let {
+            JdbcComponents(
+                it.groupValues[1],
+                it.groupValues[2].toInt(),
+                it.groupValues[3]
+            )
+        }
     }
+
+    private data class JdbcComponents(
+        val host: String,
+        val port: Int,
+        val dbName: String,
+    )
 
     private fun getHostFromPgConnectionString(connString: String): String? {
         val pattern = Regex("postgresql://(?:[^:@/]*:?[^:@/]*@)?([^:/?]+)")

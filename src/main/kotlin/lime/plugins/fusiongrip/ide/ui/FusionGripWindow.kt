@@ -25,9 +25,9 @@ import javax.swing.*
 class FusionGripWindow : ToolWindowFactory, DumbAware {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        ToolWindowContent.init(toolWindow);
-        val content = ContentFactory.getInstance().createContent(ToolWindowContent.getContentPanel(), "", false);
-        toolWindow.contentManager.addContent(content);
+        ToolWindowContent.init(toolWindow)
+        val content = ContentFactory.getInstance().createContent(ToolWindowContent.getContentPanel(), "", false)
+        toolWindow.contentManager.addContent(content)
     }
 
     object ToolWindowContent {
@@ -35,13 +35,13 @@ class FusionGripWindow : ToolWindowFactory, DumbAware {
         private val contentPanel = JPanel();
 
         fun init(toolWindow: ToolWindow) {
-            contentPanel.setLayout(BorderLayout(10, 20));
-            contentPanel.setBorder(BorderFactory.createEmptyBorder(40, 40, 100, 0));
-            contentPanel.add(createControlsPanel(toolWindow), BorderLayout.CENTER);
+            contentPanel.setLayout(BorderLayout(10, 20))
+            contentPanel.setBorder(BorderFactory.createEmptyBorder(40, 40, 100, 0))
+            contentPanel.add(createControlsPanel(toolWindow), BorderLayout.CENTER)
         }
 
         fun getContentPanel(): JPanel {
-            return contentPanel;
+            return contentPanel
         }
 
         @NotNull
@@ -102,9 +102,9 @@ class FusionGripWindow : ToolWindowFactory, DumbAware {
 
                 if (response == Messages.YES) {
                     val config = GenerationConfig(
-                        ".*wms.*".toRegex(),
-                        "a",
-                        "a",
+                        ".*".toRegex(),
+                        "",
+                        "",
                         true,
                         true,
                     )

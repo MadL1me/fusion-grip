@@ -11,16 +11,6 @@ import lime.plugins.fusiongrip.ide.datasource.toValidSourceName
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
-val scopeTemplate = """
-  <schema-mapping>
-    <introspection-scope>
-      <node kind="database" qname="%s">
-        <node kind="schema" negative="1" condition="%s" />
-      </node>
-    </introspection-scope>
-  </schema-mapping>
-""".trimIndent()
-
 class FuseSourcesTask {
     fun action(project: Project, config: GenerationConfig): Pair<Boolean, String> {
         try {
@@ -36,7 +26,9 @@ class FuseSourcesTask {
             // Step 2 - Get Postgres(for now) Sources from IDE
             val sources = DataSourceRegistry.getIdeDataSources(project);
             val filteredSources = sources.filter {
-                config.sourceNameRegex.matches(it.sourceName) && it.dbType != DbType.Unknown
+                config.sourceNameRegex.matches(it.sourceName) &&
+                        it.dbType != DbType.Unknown &&
+                        !it.sourceName.contains("Fuse")
             }
 
             var remoteServers = mutableListOf<RemoteDbServer>()
@@ -157,89 +149,6 @@ class FuseSourcesTask {
         val tables: List<TableDef>
     )
 
-    private fun foo(local: LocalDbRepository, remoteDb: RemoteDbRepository, source: IdeDataSource) {
-        val validSourceServerName = source.sourceName.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
-
-        for (schema in remoteDb.selectUserDefinedSchemas()) {
-            val validDbName = source.dbName.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
-            val localSchema = "${validDbName}_$schema"
-
-            local.createSchemaIfNotExists(CreateSchemaCmd(localSchema))
-
-            // (shard1: bucket_1)
-            // (shard1: bucket_2)
-
-            // (shard2: bucket_3)
-            // (shard2: bucket_4)
-
-            // get all schemas from shard 1
-            // get all schemas from shard 2
-            // [shard1, bucket1, list<table_name>]
-            // [shard1, bucket2, list<table_name>]
-            // [shard2, bucket3, list<table_name>]
-            // [shard2, bucket4, list<table_name>]
-
-            // merge schemas if possible:
-            // [hash] => bucket1, bucket2, bucket3, bucket4
-            // or
-            // [hash_server1] => bucket1, bucket2
-            // [hash_server2] => bucket3, bucket4
-
-            // foreach hash:
-            // create one hash-schema on local connection: server_x-bucket_x
-            // import foreign schema to new hash-schema
-            // foreach foreign table create real table with no data to new hash-schema
-            // delete all foreign tables
-            // foreach value in [hash] list:
-            // create tables as inherited from created ones
-
-            // CREATE TABLE fuck AS TABLE batching_manager_public.batch_task WITH NO DATA;
-
-            // CREATE FOREIGN TABLE shard1_table () INHERITS (public.batch_task_second)
-            //    SERVER prod__batching_manager
-            //    OPTIONS (table_name 'batch_task');
-
-//            local.importForeignSchema(ImportForeignSchemaCmd(
-//                schema,
-//                validSourceServerName,
-//                localSchema,
-//            ))
-        }
-    }
-
-//    private fun getJdbcUrl(source: IdeDataSource): String {
-//        return "jdbc:postgresql://${source.host}}:${source.port}/${source.dbName}"
-//    }
-//
-//    private fun createIdeDbDataSource(project: Project, source: IdeDataSource) {
-//        val store = DataSourceStorage.getProjectStorage(project)
-//
-//        val jdbc = getJdbcUrl(source)
-//
-//        val stringReader = StringReader(String.format(scopeTemplate, source.dbName, ".*"))
-//        val reader: HierarchicalStreamReader = StaxDriver().createReader(stringReader)
-//        val schema = DataSourceSchemaMapping()
-//        schema.deserialize(reader)
-//
-//        val newDataSource = LocalDataSource.create(
-//            "fusion-source",
-//            "org.postgresql.Driver",
-//            jdbc,
-//            "postgres",
-//        )
-//
-//        val postgresDriver = DatabaseDriverManager.getInstance().getDriver("postgresql")
-//
-//        //newDataSource.introspectionScope = schemaPattern
-//        newDataSource.authProviderId = "pgpass"
-//        newDataSource.databaseDriver = postgresDriver
-//        newDataSource.schemaMapping = schema
-//        newDataSource.isAutoSynchronize = true
-//        newDataSource.groupName = "${config.groupPrefix}"
-//
-//        store.addDataSource(newDataSource)
-//    }
-
     private fun createLocalForeignServer(local: LocalDbRepository, source: IdeDataSource): ForeignServerDef {
         val credentialsProvider = CredentialsProvider.getPgPassProvider()
         val creds = credentialsProvider.getCredentialsForDataSource(source)
@@ -275,12 +184,6 @@ class FuseSourcesTask {
             source.dbName,
         )
 
-//        for (schema in remoteDb.selectUserDefinedSchemas()) {
-//            val validDbName = source.dbName.replace(Regex("[!@#$%^&*()+=\\- ]"), "_")
-//            val localSchema = "${validDbName}_$schema";
-//
-//            local.createSchemaIfNotExists(CreateSchemaCmd(localSchema))
-//
 //            // (shard1: bucket_1)
 //            // (shard1: bucket_2)
 //
@@ -313,13 +216,6 @@ class FuseSourcesTask {
 //            // CREATE FOREIGN TABLE shard1_table () INHERITS (public.batch_task_second)
 //            //    SERVER prod__batching_manager
 //            //    OPTIONS (table_name 'batch_task');
-//
-//            local.importForeignSchema(ImportForeignSchemaCmd(
-//                schema,
-//                validSourceServerName,
-//                localSchema,
-//            ))
-//        }
     }
 }
 
