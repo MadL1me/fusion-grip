@@ -5,14 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2fc3e428-4376-4642-a5ec-3a3a2aa56556" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/Icons.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/settings/PluginSettingsState.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/ui/FuseGripInitialisationDialog.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/ui/FuseGripInitialiseAction.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/logic/AutoFdwSetupTask.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/icons/main.svg" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/FusionGripWindow.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/ui/FusionGripWindow.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/cli/CliCommand.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/cli/CliCommand.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/database/CredentialsProvider.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/database/CredentialsProvider.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/database/FuseDatabaseConnector.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/database/FuseDatabaseConnector.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/platform/DataSourceRegistry.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/datasource/DataSourceRegistry.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/tasks/FuseSourcesTask.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/datasource/DataSourceRegistry.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/datasource/DataSourceRegistry.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/ui/FusionGripWindow.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/ui/FusionGripWindow.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/META-INF/pluginIcon.svg" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/META-INF/pluginIcon.svg" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,7 +43,23 @@
         </task>
         <projects_view>
           <tree_state>
-            <expand />
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="fusion-grip" type="f1a62948:ProjectNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="fusion-grip" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="fusion-grip" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="build" type="c8890929:TasksNode$1" />
+              </path>
+            </expand>
             <select />
           </tree_state>
         </projects_view>
@@ -78,15 +101,19 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
-    "Gradle.Run Plugin.executor": "Debug",
+    "Gradle.Run Plugin.executor": "Run",
+    "Gradle.fusion-grip [build].executor": "Run",
     "Gradle.fusion-grip [setupDependencies].executor": "Run",
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "dev",
+    "jdk.selected.JAVA_MODULE": "17",
     "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/ilklimenko/Desktop/MyProject/plugins/fusion-grip/icons",
     "project.structure.last.edited": "Libraries",
     "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.15402299"
+    "project.structure.side.proportion": "0.15402299",
+    "settings.editor.selected.configurable": "preferences.pluginManager"
   },
   "keyToStringList": {
     "kotlin-gradle-user-dirs": [
@@ -95,7 +122,14 @@
   }
 }]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/icons" />
+      <recent name="$PROJECT_DIR$/src/main/resources/META-INF" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src/main/resources/icons" />
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/src/main/resources/META-INF" />
       <recent name="$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/cli" />
     </key>
     <key name="MoveKotlinTopLevelDeclarationsDialog.RECENTS_KEY">
@@ -211,59 +245,45 @@
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt</url>
-          <line>95</line>
-          <option name="timeStamp" value="3" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="kotlin-line">
           <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/cli/CliCommand.kt</url>
           <line>24</line>
           <option name="timeStamp" value="6" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="kotlin-line">
           <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt</url>
-          <line>98</line>
+          <line>64</line>
           <option name="timeStamp" value="17" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt</url>
-          <line>314</line>
-          <option name="timeStamp" value="62" />
+          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/database/FuseDatabaseConnector.kt</url>
+          <line>151</line>
+          <option name="timeStamp" value="134" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt</url>
-          <line>275</line>
-          <option name="timeStamp" value="63" />
+          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/datasource/DataSourceRegistry.kt</url>
+          <line>44</line>
+          <properties>
+            <option name="lambda-ordinal" value="-1" />
+          </properties>
+          <option name="timeStamp" value="136" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt</url>
-          <line>279</line>
-          <option name="timeStamp" value="65" />
+          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/ui/FuseGripInitialisationDialog.kt</url>
+          <line>147</line>
+          <properties>
+            <option name="lambda-ordinal" value="-1" />
+          </properties>
+          <option name="timeStamp" value="160" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt</url>
-          <line>51</line>
-          <option name="timeStamp" value="76" />
+          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/ui/FuseGripInitialisationDialog.kt</url>
+          <line>148</line>
+          <option name="timeStamp" value="161" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt</url>
-          <line>105</line>
-          <option name="timeStamp" value="105" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt</url>
-          <line>104</line>
-          <option name="timeStamp" value="106" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt</url>
-          <line>30</line>
-          <option name="timeStamp" value="108" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/tasks/FuseSourcesTask.kt</url>
-          <line>32</line>
-          <option name="timeStamp" value="109" />
+          <url>file://$PROJECT_DIR$/src/main/kotlin/lime/plugins/fusiongrip/ide/ui/FuseGripInitialisationDialog.kt</url>
+          <line>145</line>
+          <option name="timeStamp" value="162" />
         </line-breakpoint>
         <breakpoint enabled="true" type="java-wildcard-method">
           <properties class="FusionGripWindow" method="*">
@@ -279,6 +299,7 @@
         <PinnedItemInfo parentTag="com.intellij.database.dataSource.DatabaseDriverImpl" memberName="myBounds" />
         <PinnedItemInfo parentTag="com.intellij.database.dataSource.LocalDataSource" memberName="myAuthProviderId" />
         <PinnedItemInfo parentTag="com.intellij.database.dataSource.DataSourceStorage$Prj" memberName="myDataSources" />
+        <PinnedItemInfo parentTag="com.intellij.ui.treeStructure.treetable.TreeTableTree" memberName="myTreeTable" />
       </pinned-members>
     </pin-to-top-manager>
   </component>

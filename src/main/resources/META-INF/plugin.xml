@@ -23,6 +23,21 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.database</depends>
 
+    <actions>
+        <action
+                id="lime.plugins.fusiongrip.ide.ui.FuseGripInitialiseAction"
+                class="lime.plugins.fusiongrip.ide.ui.FuseGripInitialiseAction"
+                text="Create FusionGrip DataSource"
+                icon="/icons/main.svg"
+                description="Create FusionGrip combined datasource">
+            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>
+        </action>
+    </actions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="lime.plugins.fusiongrip.ide.settings.PluginSettingsState"/>
+    </extensions>
+
     <!-- Extension points defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">

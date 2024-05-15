@@ -23,7 +23,6 @@ import java.awt.Insets
 import javax.swing.*
 
 class FusionGripWindow : ToolWindowFactory, DumbAware {
-
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         ToolWindowContent.init(toolWindow)
         val content = ContentFactory.getInstance().createContent(ToolWindowContent.getContentPanel(), "", false)
@@ -31,7 +30,6 @@ class FusionGripWindow : ToolWindowFactory, DumbAware {
     }
 
     object ToolWindowContent {
-
         private val contentPanel = JPanel();
 
         fun init(toolWindow: ToolWindow) {
@@ -56,26 +54,6 @@ class FusionGripWindow : ToolWindowFactory, DumbAware {
 
             return iconButton
         }
-
-//        @NotNull
-//        private fun createMergeSchemasCheckbox(tooltip: String): JButton {
-//            return null
-//        }
-//
-//        @NotNull
-//        private fun createMergeDatabasesCheckbox(tooltip: String): JButton {
-//            return null
-//        }
-//
-//        @NotNull
-//        private fun createGroupNameInput(tooltip: String): JButton {
-//            return null
-//        }
-//
-//        @NotNull
-//        private fun createLocalDbNameInput(tooltip: String): JButton {
-//            return null
-//        }
 
         @NotNull
         private fun createControlsPanel(toolWindow: ToolWindow): JPanel {

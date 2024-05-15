@@ -9,7 +9,6 @@ data class DbConnectionCredentials(
 )
 
 interface CredentialsProvider {
-
     fun getCredentialsForDataSource(source: IdeDataSource): DbConnectionCredentials
 
     companion object Factory {

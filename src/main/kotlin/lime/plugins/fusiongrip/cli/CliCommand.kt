@@ -1,6 +1,6 @@
 package lime.plugins.fusiongrip.cli
 
-import lime.plugins.fusiongrip.database.DbConstants
+import lime.plugins.fusiongrip.database.LocalDbConstants
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -32,9 +32,9 @@ class CliCommand private constructor (
                 "/",
                 ("""
                     docker run --name fuse-grip-postgres
-                        -e POSTGRES_USER=${DbConstants.ADMIN_LOGIN}
-                        -e POSTGRES_PASSWORD=${DbConstants.ADMIN_PASS}
-                        -e POSTGRES_DB=${DbConstants.DEFAULT_DB_NAME} -p ${DbConstants.PGPORT}:5432
+                        -e POSTGRES_USER=${LocalDbConstants.ADMIN_LOGIN}
+                        -e POSTGRES_PASSWORD=${LocalDbConstants.ADMIN_PASS}
+                        -e POSTGRES_DB=${LocalDbConstants.DEFAULT_DB_NAME} -p ${LocalDbConstants.PGPORT}:5432
                         -d postgres:16.1
                  """.trimIndent()))
         }

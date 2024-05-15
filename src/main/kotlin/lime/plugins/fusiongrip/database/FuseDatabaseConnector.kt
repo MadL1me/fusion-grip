@@ -40,8 +40,7 @@ data class ImportCustomEnumCmd(
     val enum: PgEnumDefinition
 )
 
-class LocalDbRepository(val connection: Connection) {
-
+class LocalDbRepository(private val connection: Connection) {
     fun getForeignTables(schema: String): List<String> {
         val sql = "SELECT * FROM information_schema.foreign_tables WHERE foreign_table_schema = '$schema'"
         val statement = connection.createStatement()
@@ -222,6 +221,27 @@ object DbConnectionFactory {
     }
 }
 
+object LocalDbConstants {
+    const val LOCALHOST = "localhost"
+    const val PGPORT = 5432
+    const val ADMIN_LOGIN = "postgres"
+    const val ADMIN_PASS = "postgres"
+    const val DEFAULT_DB_NAME = "db"
+    const val POSTGRES_DB_NAME = "postgres"
+}
+
+object LocalDbFactory {
+    fun getLocalDb(dbname: String): LocalDbRepository {
+        return LocalDbRepository(DbConnectionFactory.getPostgresConnection(
+            LocalDbConstants.LOCALHOST,
+            LocalDbConstants.PGPORT,
+            dbname,
+            LocalDbConstants.ADMIN_LOGIN,
+            LocalDbConstants.ADMIN_PASS
+        ))
+    }
+}
+
 object RemoteDbFactory {
     fun getRemoteDb(source: IdeDataSource): RemoteDbRepository {
         val credentialsProvider = CredentialsProvider.getPgPassProvider()
@@ -236,27 +256,6 @@ object RemoteDbFactory {
                 creds.password
             )
         )
-    }
-}
-
-object DbConstants {
-    const val LOCALHOST = "localhost"
-    const val PGPORT = 5432
-    const val ADMIN_LOGIN = "postgres"
-    const val ADMIN_PASS = "postgres"
-    const val DEFAULT_DB_NAME = "db"
-    const val POSTGRES_DB_NAME = "postgres"
-}
-
-object LocalDbFactory {
-    fun getLocalDb(dbname: String): LocalDbRepository {
-        return LocalDbRepository(DbConnectionFactory.getPostgresConnection(
-            DbConstants.LOCALHOST,
-            DbConstants.PGPORT,
-            dbname,
-            DbConstants.ADMIN_LOGIN,
-            DbConstants.ADMIN_PASS
-        ))
     }
 }
 

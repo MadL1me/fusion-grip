@@ -2,10 +2,6 @@ package lime.plugins.fusiongrip.ide.datasource
 
 import com.intellij.database.dataSource.*
 import com.intellij.openapi.project.Project
-import com.thoughtworks.xstream.io.HierarchicalStreamReader
-import com.thoughtworks.xstream.io.xml.StaxDriver
-import lime.plugins.fusiongrip.database.DbConstants
-import java.io.StringReader
 
 data class IdeDataSource(
     val sourceName: String,
